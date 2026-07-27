@@ -1,0 +1,41 @@
+# Caddy configuration for Nuxt application
+# Reverse proxy setup for development
+
+localhost {
+    # Reverse proxy to Nuxt application
+    reverse_proxy nuxt:3000 {
+        # Headers configuration
+        header_upstream X-Forwarded-For {http.request.remote.host}
+        header_upstream X-Forwarded-Proto {http.request.proto}
+        header_upstream X-Forwarded-Host {http.request.host}
+    }
+    
+    # WebSocket support
+    reverse_proxy /ws nuxt:3000 {
+        header_upstream Connection "upgrade"
+        header_upstream Upgrade "websocket"
+    }
+
+    # Logging
+    log {
+        output stdout
+        level debug
+    }
+}
+
+# Allow self-signed certificates for development
+(self_signed) {
+    tls internal {
+        on_demand
+    }
+}
+
+# Additional configuration for when using a custom domain
+# Uncomment and modify as needed
+# example.local {
+#     reverse_proxy nuxt:3000 {
+#         header_upstream X-Forwarded-For {http.request.remote.host}
+#         header_upstream X-Forwarded-Proto {http.request.proto}
+#         header_upstream X-Forwarded-Host {http.request.host}
+#     }
+# }
