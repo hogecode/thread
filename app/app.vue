@@ -1,6 +1,7 @@
 <template>
   <NuxtLayout>
-    <NuxtPage />
+    <UApp>
+      <NuxtPage />
+    </UApp>
   </NuxtLayout>
-  <UiToastContainer />
 </template>

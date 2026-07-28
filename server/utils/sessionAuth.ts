@@ -34,9 +34,12 @@ export class SessionAuth {
     // Cookieヘッダーをparse
     const cookies = cookieHeader.split(';').reduce((acc: Record<string, string>, cookie: string) => {
       const parts = cookie.trim().split('=')
-      if (parts.length === 2) {
-        const [name, value] = parts
-        acc[name as string] = decodeURIComponent(value as string)
+      if (parts.length >= 2) {
+        const name = parts[0]
+        const value = parts[1]
+        if (name && value) {
+          acc[name] = decodeURIComponent(value)
+        }
       }
       return acc
     }, {})

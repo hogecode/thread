@@ -1,14 +1,13 @@
-import type { CreateUserInput, RegisterResponse } from '../../types'
-import { AppError, ErrorCodes } from '../../types'
+import type { LoginResponse } from '../../types'
 import { UserService } from '../../service/userService'
 import { SessionService } from '../../service/sessionService'
-import { SessionAuth } from '../../middleware/sessionAuth'
+import { SessionAuth } from '../../utils/sessionAuth'
 import { Validator } from '../../utils/validation'
 import { handleError, successResponse } from '../../utils/errorHandler'
 
 /**
- * POST /api/auth/register
- * ユーザー登録エンドポイント
+ * POST /api/auth/login
+ * ログインエンドポイント
  */
 export default defineEventHandler(async (event) => {
   try {
@@ -17,18 +16,14 @@ export default defineEventHandler(async (event) => {
 
     // バリデーション
     const validator = new Validator()
-    validator.validateRegistrationForm(body)
+    validator.validateLoginForm(body)
 
     // サービスのインスタンス化
     const userService = await UserService.create()
     const sessionService = await SessionService.create()
 
-    // ユーザーを登録
-    const user = await userService.register({
-      username: body.username,
-      email: body.email,
-      password: body.password,
-    })
+    // ログイン認証
+    const user = await userService.validateLogin(body.email, body.password)
 
     // セッションを作成
     const session = await sessionService.createSession(user.id)
@@ -41,12 +36,12 @@ export default defineEventHandler(async (event) => {
     appendHeader(event, 'Set-Cookie', setCookieHeader)
 
     // レスポンスを返す
-    const response: RegisterResponse = {
+    const response: LoginResponse = {
       user,
-      message: 'ユーザー登録が完了しました',
+      message: 'ログインしました',
     }
 
-    setResponseStatus(event, 201)
+    setResponseStatus(event, 200)
     return successResponse(response)
   } catch (error) {
     // エラーハンドリング

@@ -1,4 +1,4 @@
-import { SessionAuth } from '../../middleware/sessionAuth'
+import { SessionAuth } from '../../utils/sessionAuth'
 import { handleError, successResponse } from '../../utils/errorHandler'
 
 /**

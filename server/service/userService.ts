@@ -1,4 +1,4 @@
-import { hash, compare } from 'bcrypt'
+import { hash, compare } from 'bcryptjs'
 import type { CreateUserInput, UserData } from '../types'
 import { AppError, ErrorCodes } from '../types'
 import { UserRepository } from '../repository/userRepository'
