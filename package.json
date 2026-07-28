@@ -22,8 +22,10 @@
     "nuxt": "^4.5.1",
     "tailwindcss": "^4.3.3",
     "uuid": "^9.0.1",
+    "vee-validate": "^4.15.1",
     "vue": "^3.5.40",
-    "vue-router": "^5.2.0"
+    "vue-router": "^5.2.0",
+    "yup": "^1.7.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",

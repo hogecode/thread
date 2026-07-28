@@ -1,3 +1,76 @@
+<script setup lang="ts">
+import { useForm } from 'vee-validate'
+import { useAuthStore } from '~/stores/auth'
+import * as yup from 'yup'
+
+definePageMeta({
+  layout: 'default',
+})
+
+const authStore = useAuthStore()
+const router = useRouter()
+
+// useFetchの戻り値を保持
+let registerResult: any = null
+
+/**
+ * 登録フォームバリデーションスキーマ
+ */
+const registerValidationSchema = yup.object({
+  username: yup
+    .string()
+    .required('ユーザー名は必須です')
+    .min(3, 'ユーザー名は3文字以上である必要があります'),
+  email: yup
+    .string()
+    .required('メールアドレスは必須です')
+    .email('有効なメールアドレスを入力してください'),
+  password: yup
+    .string()
+    .required('パスワードは必須です')
+    .min(8, 'パスワードは8文字以上である必要があります'),
+})
+
+// VeeValidateフォーム初期化
+const { values, errors, handleSubmit, resetForm } = useForm({
+  validationSchema: registerValidationSchema,
+  initialValues: {
+    username: '',
+    email: '',
+    password: '',
+  },
+})
+
+/**
+ * エラーをクリア
+ */
+const clearError = () => {
+  if (registerResult?.error) {
+    registerResult.error.value = null
+  }
+}
+
+/**
+ * フォーム送信
+ */
+const onSubmit = handleSubmit(async (formValues) => {
+  try {
+    registerResult = await authStore.register(
+      formValues.email,
+      formValues.username,
+      formValues.password
+    )
+    
+    if (!registerResult.error?.value && registerResult.success) {
+      // 登録成功 → プロフィールページへリダイレクト
+      await navigateTo('/profile')
+    }
+  } catch (err: any) {
+    console.error('登録エラー:', err)
+  }
+})
+</script>
+
 <template>
   <div class="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div class="w-full max-w-md space-y-8">
@@ -18,15 +91,15 @@
       </div>
 
       <!-- フォーム -->
-      <form @submit.prevent="handleSubmit" class="mt-8 space-y-6">
+      <form @submit="onSubmit" class="mt-8 space-y-6">
         <!-- エラーメッセージ -->
         <UAlert
-          v-if="authStore.error"
+          v-if="registerResult?.error?.value"
           icon="i-heroicons-exclamation-triangle"
           color="error"
           title="エラー"
-          :description="authStore.error"
-          @close="authStore.clearError()"
+          :description="registerResult.error.value.message || '登録に失敗しました'"
+          @close="clearError()"
         />
 
         <!-- ユーザー名 -->
@@ -36,15 +109,14 @@
           </label>
           <UInput
             id="username"
-            v-model="form.values.username"
+            v-model="values.username"
             type="text"
             autocomplete="username"
             placeholder="john_doe"
             class="mt-1"
-            @blur="() => (form.touched.username = true)"
           />
-          <p v-if="form.getFieldError('username')" class="mt-1 text-sm text-red-600">
-            {{ form.getFieldError('username') }}
+          <p v-if="errors.username" class="mt-1 text-sm text-red-600">
+            {{ errors.username }}
           </p>
         </div>
 
@@ -55,15 +127,14 @@
           </label>
           <UInput
             id="email"
-            v-model="form.values.email"
+            v-model="values.email"
             type="email"
             autocomplete="email"
             placeholder="john@example.com"
             class="mt-1"
-            @blur="() => (form.touched.email = true)"
           />
-          <p v-if="form.getFieldError('email')" class="mt-1 text-sm text-red-600">
-            {{ form.getFieldError('email') }}
+          <p v-if="errors.email" class="mt-1 text-sm text-red-600">
+            {{ errors.email }}
           </p>
         </div>
 
@@ -74,15 +145,14 @@
           </label>
           <UInput
             id="password"
-            v-model="form.values.password"
+            v-model="values.password"
             type="password"
             autocomplete="new-password"
             placeholder="••••••••"
             class="mt-1"
-            @blur="() => (form.touched.password = true)"
           />
-          <p v-if="form.getFieldError('password')" class="mt-1 text-sm text-red-600">
-            {{ form.getFieldError('password') }}
+          <p v-if="errors.password" class="mt-1 text-sm text-red-600">
+            {{ errors.password }}
           </p>
         </div>
 
@@ -92,8 +162,8 @@
             type="submit"
             block
             size="lg"
-            :loading="authStore.isLoading"
-            :disabled="authStore.isLoading"
+            :loading="registerResult?.pending?.value"
+            :disabled="registerResult?.pending?.value"
           >
             アカウントを作成
           </UButton>
@@ -102,65 +172,3 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { useAuthStore } from '~/stores/auth'
-import { useForm } from '~/composables/useForm'
-
-definePageMeta({
-  layout: 'default',
-})
-
-const authStore = useAuthStore()
-const router = useRouter()
-
-// フォーム状態
-const form = useForm({
-  username: '',
-  email: '',
-  password: '',
-})
-
-/**
- * フォーム送信
- */
-const handleSubmit = async () => {
-  // バリデーション
-  const newErrors: Record<string, string> = {}
-
-  if (!form.values.username) {
-    newErrors.username = 'ユーザー名は必須です'
-  } else if (form.values.username.length < 3) {
-    newErrors.username = 'ユーザー名は3文字以上である必要があります'
-  }
-
-  if (!form.values.email) {
-    newErrors.email = 'メールアドレスは必須です'
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.values.email)) {
-    newErrors.email = '有効なメールアドレスを入力してください'
-  }
-
-  if (!form.values.password) {
-    newErrors.password = 'パスワードは必須です'
-  } else if (form.values.password.length < 8) {
-    newErrors.password = 'パスワードは8文字以上である必要があります'
-  }
-
-  if (Object.keys(newErrors).length > 0) {
-    form.setErrors(newErrors)
-    return
-  }
-
-  // 登録実行
-  const success = await authStore.register(
-    form.values.email,
-    form.values.username,
-    form.values.password
-  )
-
-  if (success) {
-    // 登録成功 → プロフィールページへリダイレクト
-    await navigateTo('/profile')
-  }
-}
-</script>

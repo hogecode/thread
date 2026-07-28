@@ -1,8 +1,76 @@
+<script setup lang="ts">
+import { useAuthStore } from '~/stores/auth'
+
+definePageMeta({
+  layout: 'default',
+})
+
+const authStore = useAuthStore()
+const router = useRouter()
+
+// useFetchの戻り値を保持
+let profileResult: any = null
+let logoutResult: any = null
+
+/**
+ * 日付をフォーマット
+ */
+const formatDate = (date: any) => {
+  if (!date) return '-'
+  const d = new Date(date)
+  return d.toLocaleDateString('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+/**
+ * ログアウト処理
+ */
+const handleLogout = async () => {
+  try {
+    logoutResult = await authStore.logout()
+
+    if (!logoutResult.error?.value && logoutResult.success) {
+      // ログアウト成功 → ログインページへリダイレクト
+      await navigateTo('/login')
+    }
+  } catch (err: any) {
+    console.error('ログアウトエラー:', err)
+  }
+}
+
+/**
+ * マウント時にプロフィール取得
+ */
+onMounted(async () => {
+  try {
+    // 既に認証済みでユーザー情報がある場合はそのまま使用
+    if (authStore.user) {
+      return
+    }
+
+    // ない場合は取得
+    profileResult = await authStore.fetchProfile()
+  } catch (err: any) {
+    console.error('Failed to fetch profile:', err)
+  }
+
+  // 認証されていない場合はログインページへリダイレクト
+  if (!authStore.isAuthenticated || !authStore.user) {
+    await navigateTo('/login')
+  }
+})
+</script>
+
 <template>
   <div class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-2xl mx-auto">
       <!-- ローディング -->
-      <div v-if="isLoading" class="flex justify-center">
+      <div v-if="profileResult?.pending?.value" class="flex justify-center">
         <USkeleton class="h-12 w-64" />
       </div>
 
@@ -69,8 +137,8 @@
         <div class="mt-8 pt-6 border-t border-gray-200 space-y-3">
           <UButton
             @click="handleLogout"
-            :loading="isLoggingOut"
-            :disabled="isLoggingOut"
+            :loading="logoutResult?.pending?.value"
+            :disabled="logoutResult?.pending?.value"
             color="error"
             block
           >
@@ -85,7 +153,7 @@
           icon="i-heroicons-exclamation-triangle"
           color="error"
           title="エラー"
-          description="プロフィールの読み込みに失敗しました"
+          :description="profileResult?.error?.value?.message || 'プロフィールの読み込みに失敗しました'"
         />
         <div class="mt-4">
           <NuxtLink to="/login" class="text-blue-600 hover:text-blue-500">
@@ -96,71 +164,3 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { useAuthStore } from '~/stores/auth'
-
-definePageMeta({
-  layout: 'default',
-})
-
-const authStore = useAuthStore()
-const router = useRouter()
-
-const isLoading = ref(true)
-const isLoggingOut = ref(false)
-
-/**
- * 日付をフォーマット
- */
-const formatDate = (date: any) => {
-  if (!date) return '-'
-  const d = new Date(date)
-  return d.toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-/**
- * ログアウト処理
- */
-const handleLogout = async () => {
-  isLoggingOut.value = true
-  const success = await authStore.logout()
-  isLoggingOut.value = false
-
-  if (success) {
-    // ログアウト成功 → ログインページへリダイレクト
-    await navigateTo('/login')
-  }
-}
-
-/**
- * マウント時にプロフィール取得
- */
-onMounted(async () => {
-  try {
-    // 既に認証済みでユーザー情報がある場合はそのまま使用
-    if (authStore.user) {
-      isLoading.value = false
-      return
-    }
-
-    // ない場合は取得
-    await authStore.fetchProfile()
-  } catch (err) {
-    console.error('Failed to fetch profile:', err)
-  } finally {
-    isLoading.value = false
-  }
-
-  // 認証されていない場合はログインページへリダイレクト
-  if (!authStore.isAuthenticated || !authStore.user) {
-    await navigateTo('/login')
-  }
-})
-</script>

@@ -1,5 +1,17 @@
 import { defineStore } from 'pinia'
-import type { UserData } from '~/server/types'
+import type { Ref } from 'vue'
+import { ref } from 'vue'
+
+export interface UserData {
+  id: number
+  username: string
+  email: string
+  isActive: boolean
+  isAdmin: boolean
+  emailVerified: boolean
+  createdAt: Date
+  updatedAt: Date
+}
 
 /**
  * 認証ストア
@@ -9,133 +21,79 @@ export const useAuthStore = defineStore('auth', () => {
   // State
   const user = ref<UserData | null>(null)
   const isAuthenticated = ref(false)
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
 
   // Actions
   /**
    * ユーザー登録
    */
   const register = async (email: string, username: string, password: string) => {
-    isLoading.value = true
-    error.value = null
+    const { data: response, pending, error: fetchError } = await useFetch<any>('/api/auth/register', {
+      method: 'POST',
+      body: {
+        email,
+        username,
+        password,
+      },
+    })
 
-    try {
-      const response = await $fetch<any>('/api/auth/register', {
-        method: 'POST',
-        body: {
-          email,
-          username,
-          password,
-        },
-      })
-
-      if (response?.success && response?.data?.user) {
-        user.value = response.data.user
-        isAuthenticated.value = true
-        return true
-      } else {
-        error.value = response?.error?.message || '登録に失敗しました'
-        return false
-      }
-    } catch (err: any) {
-      error.value = err?.data?.error?.message || 'エラーが発生しました'
-      return false
-    } finally {
-      isLoading.value = false
+    if (response?.value?.success && response?.value?.data?.user) {
+      user.value = response.value.data.user
+      isAuthenticated.value = true
     }
+
+    return { success: response?.value?.success, pending, error: fetchError }
   }
 
   /**
    * ログイン
    */
   const login = async (email: string, password: string) => {
-    isLoading.value = true
-    error.value = null
+    const { data: response, pending, error: fetchError } = await useFetch<any>('/api/auth/login', {
+      method: 'POST',
+      body: {
+        email,
+        password,
+      },
+    })
 
-    try {
-      const response = await $fetch<any>('/api/auth/login', {
-        method: 'POST',
-        body: {
-          email,
-          password,
-        },
-      })
-
-      if (response?.success && response?.data?.user) {
-        user.value = response.data.user
-        isAuthenticated.value = true
-        return true
-      } else {
-        error.value = response?.error?.message || 'ログインに失敗しました'
-        return false
-      }
-    } catch (err: any) {
-      error.value = err?.data?.error?.message || 'エラーが発生しました'
-      return false
-    } finally {
-      isLoading.value = false
+    if (response?.value?.success && response?.value?.data?.user) {
+      user.value = response.value.data.user
+      isAuthenticated.value = true
     }
+
+    return { success: response?.value?.success, pending, error: fetchError }
   }
 
   /**
    * ログアウト
    */
   const logout = async () => {
-    isLoading.value = true
-    error.value = null
+    const { pending, error: fetchError } = await useFetch('/api/auth/logout', {
+      method: 'POST',
+    })
 
-    try {
-      await $fetch('/api/auth/logout', {
-        method: 'POST',
-      })
+    user.value = null
+    isAuthenticated.value = false
 
-      user.value = null
-      isAuthenticated.value = false
-      return true
-    } catch (err: any) {
-      error.value = err.data?.error?.message || 'ログアウトに失敗しました'
-      return false
-    } finally {
-      isLoading.value = false
-    }
+    return { success: true, pending, error: fetchError }
   }
 
   /**
    * プロフィール取得
    */
   const fetchProfile = async () => {
-    isLoading.value = true
-    error.value = null
+    const { data: response, pending, error: fetchError } = await useFetch<any>('/api/user/profile', {
+      method: 'GET',
+    })
 
-    try {
-      const response = await $fetch<any>('/api/user/profile', {
-        method: 'GET',
-      })
-
-      if (response?.success && response?.data) {
-        user.value = response.data
-        isAuthenticated.value = true
-        return true
-      } else {
-        error.value = response?.error?.message || 'プロフィール取得に失敗しました'
-        isAuthenticated.value = false
-        return false
-      }
-    } catch (err: any) {
-      error.value = err?.data?.error?.message || 'エラーが発生しました'
+    if (response?.value?.success && response?.value?.data) {
+      user.value = response.value.data
+      isAuthenticated.value = true
+    } else {
       isAuthenticated.value = false
-      return false
-    } finally {
-      isLoading.value = false
     }
-  }
 
-  /**
-   * エラーをクリア
-   */
-  const clearError = () => {
-    error.value = null
+    return { success: response?.value?.success, pending, error: fetchError }
   }
 
   /**
@@ -144,23 +102,18 @@ export const useAuthStore = defineStore('auth', () => {
   const reset = () => {
     user.value = null
     isAuthenticated.value = false
-    isLoading.value = false
-    error.value = null
   }
 
   return {
     // State
     user,
     isAuthenticated,
-    isLoading,
-    error,
 
     // Actions
     register,
     login,
     logout,
     fetchProfile,
-    clearError,
     reset,
   }
 })

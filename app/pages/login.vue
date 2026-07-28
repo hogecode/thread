@@ -1,3 +1,67 @@
+<script setup lang="ts">
+import { useForm } from 'vee-validate'
+import { useAuthStore } from '~/stores/auth'
+import * as yup from 'yup'
+import { ref } from 'vue'
+
+definePageMeta({
+  layout: 'default',
+})
+
+const authStore = useAuthStore()
+const router = useRouter()
+
+// useFetchの戻り値を保持
+let loginResult: any = null
+
+/**
+ * ログイン フォームバリデーションスキーマ
+ */
+const loginValidationSchema = yup.object({
+  email: yup
+    .string()
+    .required('メールアドレスは必須です')
+    .email('有効なメールアドレスを入力してください'),
+  password: yup
+    .string()
+    .required('パスワードは必須です'),
+})
+
+// VeeValidateフォーム初期化
+const { values, errors, handleSubmit, resetForm } = useForm({
+  validationSchema: loginValidationSchema,
+  initialValues: {
+    email: '',
+    password: '',
+  },
+})
+
+/**
+ * エラーをクリア
+ */
+const clearError = () => {
+  if (loginResult?.error) {
+    loginResult.error.value = null
+  }
+}
+
+/**
+ * フォーム送信
+ */
+const onSubmit = handleSubmit(async (formValues) => {
+  try {
+    loginResult = await authStore.login(formValues.email, formValues.password)
+    
+    if (!loginResult.error?.value && loginResult.success) {
+      // ログイン成功 → プロフィールページへリダイレクト
+      await navigateTo('/profile')
+    }
+  } catch (err: any) {
+    console.error('ログインエラー:', err)
+  }
+})
+</script>
+
 <template>
   <div class="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div class="w-full max-w-md space-y-8">
@@ -18,15 +82,15 @@
       </div>
 
       <!-- フォーム -->
-      <form @submit.prevent="handleSubmit" class="mt-8 space-y-6">
+      <form @submit="onSubmit" class="mt-8 space-y-6">
         <!-- エラーメッセージ -->
         <UAlert
-          v-if="authStore.error"
+          v-if="loginResult?.error?.value"
           icon="i-heroicons-exclamation-triangle"
           color="error"
           title="エラー"
-          :description="authStore.error"
-          @close="authStore.clearError()"
+          :description="loginResult.error.value.message || 'ログインに失敗しました'"
+          @close="clearError()"
         />
 
         <!-- メールアドレス -->
@@ -36,15 +100,14 @@
           </label>
           <UInput
             id="email"
-            v-model="form.values.email"
+            v-model="values.email"
             type="email"
             autocomplete="email"
             placeholder="john@example.com"
             class="mt-1"
-            @blur="() => (form.touched.email = true)"
           />
-          <p v-if="form.getFieldError('email')" class="mt-1 text-sm text-red-600">
-            {{ form.getFieldError('email') }}
+          <p v-if="errors.email" class="mt-1 text-sm text-red-600">
+            {{ errors.email }}
           </p>
         </div>
 
@@ -55,15 +118,14 @@
           </label>
           <UInput
             id="password"
-            v-model="form.values.password"
+            v-model="values.password"
             type="password"
             autocomplete="current-password"
             placeholder="••••••••"
             class="mt-1"
-            @blur="() => (form.touched.password = true)"
           />
-          <p v-if="form.getFieldError('password')" class="mt-1 text-sm text-red-600">
-            {{ form.getFieldError('password') }}
+          <p v-if="errors.password" class="mt-1 text-sm text-red-600">
+            {{ errors.password }}
           </p>
         </div>
 
@@ -73,8 +135,8 @@
             type="submit"
             block
             size="lg"
-            :loading="authStore.isLoading"
-            :disabled="authStore.isLoading"
+            :loading="loginResult?.pending?.value"
+            :disabled="loginResult?.pending?.value"
           >
             ログイン
           </UButton>
@@ -83,52 +145,3 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { useAuthStore } from '~/stores/auth'
-import { useForm } from '~/composables/useForm'
-
-definePageMeta({
-  layout: 'default',
-})
-
-const authStore = useAuthStore()
-const router = useRouter()
-
-// フォーム状態
-const form = useForm({
-  email: '',
-  password: '',
-})
-
-/**
- * フォーム送信
- */
-const handleSubmit = async () => {
-  // バリデーション
-  const newErrors: Record<string, string> = {}
-
-  if (!form.values.email) {
-    newErrors.email = 'メールアドレスは必須です'
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.values.email)) {
-    newErrors.email = '有効なメールアドレスを入力してください'
-  }
-
-  if (!form.values.password) {
-    newErrors.password = 'パスワードは必須です'
-  }
-
-  if (Object.keys(newErrors).length > 0) {
-    form.setErrors(newErrors)
-    return
-  }
-
-  // ログイン実行
-  const success = await authStore.login(form.values.email, form.values.password)
-
-  if (success) {
-    // ログイン成功 → プロフィールページへリダイレクト
-    await navigateTo('/profile')
-  }
-}
-</script>
