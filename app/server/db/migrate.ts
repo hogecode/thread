@@ -1,12 +1,16 @@
 /**
  * Drizzle マイグレーション実行スクリプト
- * コマンド: npm run db:migrate
+ * Docker環境での実行: entrypoint.sh から呼び出し
+ * または手動実行時: npx tsx app/server/db/migrate.ts
  */
 
 import { migrate } from 'drizzle-orm/mysql2/migrator';
 import { drizzle } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function runMigrations() {
   const connection = await mysql.createConnection({
@@ -19,8 +23,8 @@ async function runMigrations() {
 
   const db = drizzle(connection);
 
-  console.log('Running migrations...');
-  const migrationsFolder = path.join(process.cwd(), 'app/server/db/migrations');
+  console.log('🚀 Running migrations...');
+  const migrationsFolder = path.join(__dirname, 'migrations');
 
   try {
     await migrate(db, { migrationsFolder });

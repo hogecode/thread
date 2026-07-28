@@ -320,7 +320,39 @@ export const adminLogs = mysqlTable(
   })
 );
 
+// ==================== Sessions ====================
+
+/**
+ * セッションテーブル
+ * ユーザーセッション情報を管理
+ */
+export const sessions = mysqlTable(
+  'sessions',
+  {
+    id: int('id').primaryKey().autoincrement(),
+    sessionId: varchar('session_id', { length: 255 }).notNull().unique(),
+    userId: int('user_id').notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    sessionIdIdx: uniqueIndex('idx_session_id_unique').on(table.sessionId),
+    userIdIdx: index('idx_user_id').on(table.userId),
+    expiresAtIdx: index('idx_expires_at').on(table.expiresAt),
+    fk_user: foreignKey({ columns: [table.userId], foreignColumns: [users.id] })
+      .onDelete('cascade')
+      .onUpdate('cascade'),
+  })
+);
+
 // ==================== Relations ====================
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, {
+    fields: [sessions.userId],
+    references: [users.id],
+  }),
+}));
 
 export const usersRelations = relations(users, ({ one, many }) => ({
   profile: one(userProfiles, {
